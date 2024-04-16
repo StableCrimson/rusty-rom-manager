@@ -10,12 +10,7 @@ pub fn organize(
     copy: bool,
     sort_method: super::OrganizationType,
 ) -> std::io::Result<()> {
-    let target_dir = if let Some(dir) = dest {
-        dir
-    } else {
-        println!("No output path specified, using current file directory");
-        src
-    };
+    let target_dir = if let Some(dir) = dest { dir } else { src };
 
     if !src.exists() {
         return Err(Error::new(
@@ -42,14 +37,13 @@ pub fn organize(
 
     let mut output_map: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
-    // TODO: This is a very rudimentary way of organizing. Do this by console in the future
     for entry in entries {
         if entry.is_dir() {
             // TODO: Here is where we will need to fingerprint before treating it like
             // a rom directory
             println!(
-                "{} is a directory. Directory scanning is not supported, skipping...",
-                entry.to_str().unwrap()
+                "{:?} is a directory. Directory scanning is not supported, skipping...",
+                entry
             );
             continue;
         }
@@ -57,7 +51,7 @@ pub fn organize(
         let extension = entry.extension();
 
         if extension.is_none() {
-            println!("{} has no extension, skipping...", entry.to_str().unwrap());
+            println!("{:?} has no extension, skipping...", entry);
             continue;
         }
 
@@ -80,8 +74,8 @@ pub fn organize(
             .push(entry);
     }
 
-    println!("{:?}", output_map);
-    /*
+    println!("{:#?}", output_map);
+
     for (ext, path) in &output_map {
         for file in path {
             let mut new_file_dest = target_dir.to_owned();
@@ -102,7 +96,6 @@ pub fn organize(
             }
         }
     }
-    */
 
     Ok(())
 }

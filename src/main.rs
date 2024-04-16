@@ -7,11 +7,11 @@ use std::path::PathBuf;
 #[command(version, about, long_about=None)]
 struct Arguments {
     #[command(subcommand)]
-    command: Commands,
+    command: Command,
 }
 
 #[derive(Subcommand)]
-enum Commands {
+enum Command {
     // TODO: Update once sorting by console is supported
     /// Organize your ROM files based on file type
     Organize {
@@ -31,11 +31,12 @@ enum Commands {
         #[arg(short, long, value_enum, default_value_t=OrganizationType::Console)]
         sort_method: OrganizationType,
     },
+    // TODO: File conversion??? ISO -> RVZ, BIN+CUE -> PBP/CHD
+    // Allow for it to be done on a specific file or a whole directory
 }
 
 #[derive(ValueEnum, Copy, Clone)]
 enum OrganizationType {
-
     /// Sort by file extension
     FileExtension,
 
@@ -48,7 +49,7 @@ fn main() -> std::io::Result<()> {
     let args = Arguments::parse();
 
     match args.command {
-        Commands::Organize {
+        Command::Organize {
             path,
             target,
             copy,

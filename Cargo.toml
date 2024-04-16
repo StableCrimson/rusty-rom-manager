@@ -1,5 +1,4 @@
 [package]
-author = "StableCrimson"
 name = "rom_manager"
 description = "A tool for managing your ROM library"
 version = "0.1.0"
