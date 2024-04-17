@@ -19,11 +19,11 @@ enum Command {
         path: PathBuf,
 
         /// Directory where the organized files should be placed.
-        /// Defaults to current ROM directory
+        /// Defaults to source directory
         #[arg(short, long)]
         target: Option<PathBuf>,
 
-        /// Enable this if you want to copy the files instead of move them.
+        /// Copy files instead of move them
         #[arg(short, long, default_value_t = false)]
         copy: bool,
 
@@ -37,12 +37,12 @@ enum Command {
 
 #[derive(ValueEnum, Copy, Clone)]
 enum OrganizationType {
+    /// Sort by console (WIP).
+    /// If the console ID of a ROM cannot be determined it will be ignored
+    Console,
+
     /// Sort by file extension
     FileExtension,
-
-    /// Sort by console (not fully supported).
-    /// If a ROM file isn't supported yet then it will be left untouched
-    Console,
 }
 
 fn main() -> std::io::Result<()> {

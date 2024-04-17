@@ -69,7 +69,13 @@ pub fn get_console_id(file_path: &Path) -> Option<&str> {
     }
 
     // TODO: CHD, PBP, RVZ?, BIN+QUE?
-    try_fingerprint_iso(file_path)
+    match extension {
+        "iso" =>  try_fingerprint_iso(file_path),
+        // "chd" => try_fingerprint_chd(file_path),
+        // "pbp" => try_fingerprint_pbp(file_path),
+        // "rvz" => try_fingerprint_rvz(file_path),
+        _ => None
+    }
 }
 
 fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
