@@ -2,76 +2,73 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::{os::unix::fs::MetadataExt, path::Path};
 
-use phf::phf_map;
-
 const ISO_MIN_SIZE: u64 = 0xF000;
 const ISO_BUFFER_LEN: usize = 0xF000;
+
 const ISO_GAMECUBE_OFFSET: usize = 0x1C;
 const ISO_GAMECUBE_FINGERPRINT: [u8; 4] = [0xC2, 0x33, 0x9F, 0x3D];
 const ISO_WII_OFFSET: usize = 0x18;
 const ISO_WII_FINGERPRINT: [u8; 4] = [0x5D, 0x1C, 0x9E, 0xA3];
 
-/*
-*   TODO: Fingerprinting
-*   PS1
-*   PS2
-*   PS3
-*   PSP
-*/
-
-static EXT_MAP: phf::Map<&str, &str> = phf_map! {
-    "gb" => "Gameboy",
-    "gbc" => "Gameboy Color",
-    "gba" => "Gameboy Advance",
-    "cdi" => "Dreamcast",
-    "gdi" => "Dreamcast",
-    "nes" => "NES",
-    "nez" => "NES",
-    "unf" => "NES",
-    "unif" => "NES",
-    "smc" => "SNES",
-    "sfc" => "SNES",
-    "md" => "Genesis",
-    "smd" => "Genesis",
-    "gen" => "Genesis",
-    "gg" => "Game Gear",
-    "z64" => "Nintendo 64",
-    "n64" => "Nintendo 64",
-    "v64" => "Nintendo 64",
-    "gcm" => "GameCube",
-    "gcz" => "GameCube",
-    "xiso" => "Xbox",
-    "nds" => "Nintendo DS",
-    "dsi" => "Nintendo DSi",
-    "wbfs" => "Wii",
-    "wad" => "Wii",
-    "cia" => "3DS",
-    "3ds" => "3DS",
-    "nsp" => "Nintendo Switch",
-    "xci" => "Nintendo Switch",
-    "ngp" => "Neo Geo",
-    "ngc" => "Neo Geo",
-    "pce" => "PC Engine",
-    "vpk" => "PlayStation Vita",
-    "vb" => "Virtual Boy",
-    "ws" => "WonderSwan",
-    "wsc" => "WonderSwan Color"
-};
+const ISO_PS2_USA_JPN_OFFSET: usize = 0x42F;
+const ISO_PS2_EUR_OFFSET: usize = 0xA97;
+const ISO_PS2_USA_FINGERPRINT: [u8; 27] = [
+    0x06, 0x01, 0x00, 0x00, 0x03, 0x03, 0x02, 0x02, 0x02, 0x0D, 0x0D, 0x0C, 0x0C, 0x0E, 0x0E, 0x0E,
+    0x09, 0x08, 0x08, 0x08, 0x08, 0x09, 0x0E, 0x0D, 0x00, 0x06, 0x05,
+];
+const ISO_PS2_JPN_FINGERPRINT: [u8; 27] = [
+    0x0E, 0x09, 0x08, 0x08, 0x0B, 0x0B, 0x0A, 0x0A, 0x0A, 0x05, 0x05, 0x04, 0x04, 0x06, 0x06, 0x06,
+    0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x06, 0x05, 0x08, 0x0E, 0x0D,
+];
+const ISO_PS2_EUR_FINGERPRINT: [u8; 67] = [
+    0x0E, 0x09, 0x09, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F,
+    0x0F, 0x0F, 0x0F, 0x0E, 0x09, 0x05, 0x02, 0x00, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x06,
+    0x0F, 0x0D, 0x0D, 0x0D, 0x0D, 0x0D, 0x0D, 0x0D, 0x0D, 0x0D, 0x0D, 0x0D, 0x0D, 0x0D, 0x04, 0x06,
+    0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x04, 0x05, 0x0B,
+    0x08, 0x0E, 0x0D,
+];
+const ISO_PSP_OFFSET: usize = 0x8000;
+const ISO_PSP_FINGERPRINT: [u8; 16] = [
+    0x01, 0x43, 0x44, 0x30, 0x30, 0x31, 0x01, 0x00, 0x50, 0x53, 0x50, 0x20, 0x47, 0x41, 0x4D, 0x45,
+];
 
 // NOTE: Maybe add support for sorting saves, too?
 fn get_console_id_by_ext(ext: &str) -> Option<&str> {
-    EXT_MAP.get(ext).copied()
+    match ext {
+        "gb" => Some("Gameboy"),
+        "gbc" => Some("Gameboy Color"),
+        "gba" => Some("Gameboy Advance"),
+        "cdi" | "gdi" => Some("Dreamcast"),
+        "nes" | "nez" | "unf" | "unif" => Some("NES"),
+        "sfc" | "smc" => Some("SNES"),
+        "gen" | "md" | "smd" => Some("Genesis"),
+        "gg" => Some("Game Gear"),
+        "n64" | "v64" | "z64" => Some("Nintendo 64"),
+        "gcm" | "gcz" => Some("GameCube"),
+        "xiso" => Some("Xbox"),
+        "nds" => Some("Nintendo DS"),
+        "dsi" => Some("Nintendo DSi"),
+        "wad" | "wbfs" => Some("Wii"),
+        "3ds" | "cia" => Some("3DS"),
+        "nsp" | "xci" => Some("Nintendo Switch"),
+        "ngp" | "ngc" => Some("Neo Geo"),
+        "pce" => Some("PC Engine"),
+        "vpk" => Some("PlayStation Vita"),
+        "vb" => Some("Virtual Boy"),
+        "ws" => Some("WonderSwan"),
+        "wsc" => Some("WonderSwan Color"),
+        _ => None,
+    }
 }
 
-pub fn try_get_console_id(file_path: &Path) -> Option<&str> {
-    let extension = file_path.extension().unwrap().to_str();
+pub fn get_console_id(file_path: &Path) -> Option<&str> {
+    let extension = file_path.extension().unwrap().to_str()?;
 
-    if let Some(ext) = extension {
-        if let Some(id) = get_console_id_by_ext(ext) {
-            return Some(id);
-        }
+    if let Some(id) = get_console_id_by_ext(extension) {
+        return Some(id);
     }
 
+    // TODO: CHD, PBP, RVZ?, BIN+QUE?
     try_fingerprint_iso(file_path)
 }
 
@@ -85,7 +82,10 @@ fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
     let file_size = &file.metadata().unwrap().size();
 
     if *file_size < ISO_MIN_SIZE {
-        println!("{:?} not large enough to fingerprint, skipping...", file_path);
+        println!(
+            "{:?} not large enough to fingerprint, skipping...",
+            file_path
+        );
         return None;
     }
 
@@ -96,15 +96,48 @@ fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
         println!("Error reading file {:?} to buffer, skipping...", file_path);
     }
 
-    let wii_fingerprint = &file_contents[ISO_WII_OFFSET..ISO_WII_OFFSET + 4];
-    if wii_fingerprint == ISO_WII_FINGERPRINT {
+    if is_fingerprint_match(&file_contents, ISO_WII_OFFSET, &ISO_WII_FINGERPRINT) {
         return Some("Wii");
     }
 
-    let gc_fingerprint = &file_contents[ISO_GAMECUBE_OFFSET..ISO_GAMECUBE_OFFSET + 4];
-    if gc_fingerprint == ISO_GAMECUBE_FINGERPRINT {
+    if is_fingerprint_match(
+        &file_contents,
+        ISO_GAMECUBE_OFFSET,
+        &ISO_GAMECUBE_FINGERPRINT,
+    ) {
         return Some("GameCube");
     }
 
+    // TODO: PSX ISOs
+
+    if is_ps2_game(&file_contents) {
+        return Some("PlayStation 2");
+    }
+
+    if is_fingerprint_match(&file_contents, ISO_PSP_OFFSET, &ISO_PSP_FINGERPRINT) {
+        return Some("PSP");
+    }
+
     None
+}
+
+fn is_fingerprint_match(buff: &[u8], offset: usize, fingerprint: &[u8]) -> bool {
+    buff[offset..offset + fingerprint.len()] == *fingerprint
+}
+
+// NOTE: This is its own method because we need to mask the bits before we can fingerprint
+// and because there are 2 offsets and 3 fingerprints
+fn is_ps2_game(buf: &[u8]) -> bool {
+    // NOTE: We need to mask off the upper 4 bits to match the fingerprint
+    let masked_buf: Vec<u8> = buf.iter().map(|b| b & 0b0000_1111).collect();
+
+    is_fingerprint_match(
+        &masked_buf,
+        ISO_PS2_USA_JPN_OFFSET,
+        &ISO_PS2_USA_FINGERPRINT,
+    ) || is_fingerprint_match(
+        &masked_buf,
+        ISO_PS2_USA_JPN_OFFSET,
+        &ISO_PS2_JPN_FINGERPRINT,
+    ) || is_fingerprint_match(&masked_buf, ISO_PS2_EUR_OFFSET, &ISO_PS2_EUR_FINGERPRINT)
 }

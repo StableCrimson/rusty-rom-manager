@@ -58,7 +58,7 @@ pub fn organize(
         let map_key = match sort_method {
             crate::OrganizationType::FileExtension => extension.unwrap().to_str().unwrap(),
             crate::OrganizationType::Console => {
-                let console = file_types::try_get_console_id(&entry);
+                let console = file_types::get_console_id(&entry);
                 if console.is_none() {
                     println!("Unable to determine type of {:?}, skipping...", entry);
                     continue;
