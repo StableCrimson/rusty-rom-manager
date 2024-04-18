@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::{os::unix::fs::MetadataExt, path::Path};
+use std::os::unix::fs::MetadataExt;
+use std::path::Path;
 
 const ISO_MIN_SIZE: u64 = 0xF000;
 const ISO_BUFFER_LEN: usize = 0xF000;
@@ -62,7 +63,7 @@ fn get_console_id_by_ext(ext: &str) -> Option<&str> {
 }
 
 pub fn get_console_id(file_path: &Path) -> Option<&str> {
-    let extension = file_path.extension().unwrap().to_str()?;
+    let extension = file_path.extension()?.to_str()?;
 
     if let Some(id) = get_console_id_by_ext(extension) {
         return Some(id);
@@ -70,11 +71,11 @@ pub fn get_console_id(file_path: &Path) -> Option<&str> {
 
     // TODO: CHD, PBP, RVZ?, BIN+QUE?
     match extension {
-        "iso" =>  try_fingerprint_iso(file_path),
+        "iso" => try_fingerprint_iso(file_path),
         // "chd" => try_fingerprint_chd(file_path),
         // "pbp" => try_fingerprint_pbp(file_path),
         // "rvz" => try_fingerprint_rvz(file_path),
-        _ => None
+        _ => None,
     }
 }
 
@@ -146,4 +147,22 @@ fn is_ps2_game(buf: &[u8]) -> bool {
         ISO_PS2_USA_JPN_OFFSET,
         &ISO_PS2_JPN_FINGERPRINT,
     ) || is_fingerprint_match(&masked_buf, ISO_PS2_EUR_OFFSET, &ISO_PS2_EUR_FINGERPRINT)
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn should_return_none_if_no_file_extension() {
+        let file_path = Path::new("my_file");
+        assert!(get_console_id(file_path).is_none())
+    }
+
+    #[test]
+    fn should_return_none_if_unknown_extension() {
+        let file_path = Path::new("my_file.asdf");
+        assert!(get_console_id(file_path).is_none())
+    }
 }

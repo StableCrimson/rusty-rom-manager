@@ -12,7 +12,6 @@ struct Arguments {
 
 #[derive(Subcommand)]
 enum Command {
-    // TODO: Update once sorting by console is supported
     /// Organize your ROM files based on file type
     Organize {
         /// Directory the unorganized files are in
