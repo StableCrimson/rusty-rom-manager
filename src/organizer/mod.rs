@@ -1,14 +1,16 @@
+mod file_types;
+
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 
-pub fn organize(src: &PathBuf, dest: Option<&PathBuf>, copy: bool) -> std::io::Result<()> {
-    let target_dir = if let Some(dir) = dest {
-        dir
-    } else {
-        println!("No output path specified, using current file directory");
-        src
-    };
+pub fn organize(
+    src: &PathBuf,
+    dest: Option<&PathBuf>,
+    copy: bool,
+    sort_method: super::OrganizationType,
+) -> std::io::Result<()> {
+    let target_dir = if let Some(dir) = dest { dir } else { src };
 
     if !src.exists() {
         return Err(Error::new(
@@ -33,29 +35,48 @@ pub fn organize(src: &PathBuf, dest: Option<&PathBuf>, copy: bool) -> std::io::R
         println!("{:?} created successfully", target_dir.as_path());
     }
 
-    println!("{:?}", entries);
-    println!("{:?}", target_dir.as_path());
+    let mut output_map: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
-    let mut extension_map: HashMap<String, Vec<PathBuf>> = HashMap::new();
-
-    // TODO: This is a very rudimentary way of organizing. Do this by console in the future
     for entry in entries {
-        let extension = entry.extension();
-
-        if extension.is_none() {
-            println!("{} has no extension, skipping...", entry.to_str().unwrap());
+        if entry.is_dir() {
+            // TODO: Here is where we will need to fingerprint before treating it like
+            // a rom directory
+            println!(
+                "{:?} is a directory. Directory scanning is not supported, skipping...",
+                entry
+            );
             continue;
         }
 
-        if let Some(ext) = extension {
-            let map_key = ext.to_str().unwrap().to_owned();
-            let _ = &extension_map.entry(map_key).or_default().push(entry);
+        let extension = entry.extension();
+
+        if extension.is_none() {
+            println!("{:?} has no extension, skipping...", entry);
+            continue;
         }
 
-        println!("{:?}", extension_map);
+        let map_key = match sort_method {
+            crate::OrganizationType::FileExtension => extension.unwrap().to_str().unwrap(),
+            crate::OrganizationType::Console => {
+                let console = file_types::get_console_id(&entry);
+                if console.is_none() {
+                    println!("Unable to determine type of {:?}, skipping...", entry);
+                    continue;
+                }
+
+                console.unwrap()
+            }
+        };
+
+        output_map
+            .entry(map_key.to_string())
+            .or_default()
+            .push(entry);
     }
 
-    for (ext, path) in &extension_map {
+    println!("{:#?}", output_map);
+
+    for (ext, path) in &output_map {
         for file in path {
             let mut new_file_dest = target_dir.to_owned();
             new_file_dest.push(ext);
