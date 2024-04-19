@@ -33,6 +33,13 @@ const ISO_PSP_FINGERPRINT: [u8; 16] = [
     0x01, 0x43, 0x44, 0x30, 0x30, 0x31, 0x01, 0x00, 0x50, 0x53, 0x50, 0x20, 0x47, 0x41, 0x4D, 0x45,
 ];
 
+const DIR_PS3_STRUCTURE: [&str; 4] = [
+    "PS3_DISC.SFB",
+    "PS3_GAME/ICON0.PNG",
+    "PS3_GAME/PARAM.SFO",
+    "PS3_GAME/PS3LOGO.DAT",
+];
+
 // NOTE: Maybe add support for sorting saves, too?
 fn get_console_id_by_ext(ext: &str) -> Option<&str> {
     match ext {
@@ -77,6 +84,19 @@ pub fn get_console_id(file_path: &Path) -> Option<&str> {
         // "rvz" => try_fingerprint_rvz(file_path),
         _ => None,
     }
+}
+
+pub fn check_dir_level_rom(file_path: &Path) -> Option<&str> {
+    if !file_path.is_dir() {
+        return None;
+    }
+
+    for file in DIR_PS3_STRUCTURE {
+        if !file_path.join(file).exists() {
+            return None;
+        }
+    }
+    Some("PlayStation 3")
 }
 
 fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {

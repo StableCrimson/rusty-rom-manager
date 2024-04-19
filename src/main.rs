@@ -52,8 +52,8 @@ fn main() -> std::io::Result<()> {
             path,
             target,
             copy,
-            sort_method: sort,
-        } => organizer::organize(&path, target.as_ref(), copy, sort)?,
+            sort_method,
+        } => organizer::organize(&path, target.as_ref(), copy, sort_method)?,
     }
 
     Ok(())

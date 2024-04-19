@@ -1,14 +1,17 @@
 mod file_types;
 
 use std::collections::HashMap;
+use std::fs;
 use std::io::{Error, ErrorKind};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use super::OrganizationType;
 
 pub fn organize(
     src: &PathBuf,
     dest: Option<&PathBuf>,
     copy: bool,
-    sort_method: super::OrganizationType,
+    sort_method: OrganizationType,
 ) -> std::io::Result<()> {
     let target_dir = if let Some(dir) = dest { dir } else { src };
 
@@ -39,12 +42,13 @@ pub fn organize(
 
     for entry in entries {
         if entry.is_dir() {
-            // TODO: Here is where we will need to fingerprint before treating it like
-            // a rom directory
-            println!(
-                "{:?} is a directory. Directory scanning is not supported, skipping...",
-                entry
-            );
+            // TODO: What to do if fingerprinting fails and recursive scanning
+            // is enabled?
+            // Ex: If it's a malformed PS3 game and the user is scanning
+            // subdirectories then are we going to scan thousands of files?
+            if let Some(id) = file_types::check_dir_level_rom(&entry) {
+                output_map.entry(id.to_string()).or_default().push(entry);
+            }
             continue;
         }
 
@@ -76,6 +80,9 @@ pub fn organize(
 
     println!("{:#?}", output_map);
 
+    // NOTE: What if the file already exists???
+    // As it is now, the original file will be overwritten.
+    // Do we want to rename it so that file becomes file-1.gb? Or should we just skip?
     for (ext, path) in &output_map {
         for file in path {
             let mut new_file_dest = target_dir.to_owned();
@@ -89,13 +96,40 @@ pub fn organize(
             new_file_dest.push(file.file_name().unwrap());
             println!("{:?}", new_file_dest);
 
-            if !copy {
-                std::fs::rename(file, new_file_dest)?;
+            if file.is_dir() {
+                move_folder(file, new_file_dest, copy)?;
             } else {
-                std::fs::copy(file, new_file_dest)?;
+                move_file(file, new_file_dest, copy)?;
             }
         }
     }
 
+    Ok(())
+}
+
+fn move_folder(
+    src: impl AsRef<Path>,
+    dest: impl AsRef<Path>,
+    copy: bool,
+) -> std::io::Result<()> {
+    fs::create_dir_all(&dest)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            move_folder(entry.path(), dest.as_ref().join(entry.file_name()), copy)?;
+        } else {
+            move_file(entry.path(), dest.as_ref().join(entry.file_name()), copy)?;
+        }
+    }
+    Ok(())
+}
+
+fn move_file(src: impl AsRef<Path>, dest: impl AsRef<Path>, copy: bool) -> std::io::Result<()> {
+    if copy {
+        fs::copy(src, dest)?;
+    } else {
+        fs::rename(src, dest)?;
+    }
     Ok(())
 }
