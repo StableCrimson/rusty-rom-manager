@@ -55,19 +55,26 @@ fn main() -> std::io::Result<()> {
     let args = Arguments::parse();
 
     let log_file = FileAppender::builder()
-        .encoder(Box::new(PatternEncoder::new("{l}-{m}\n")))
+        .encoder(Box::new(PatternEncoder::new("{l} - {m}\n")))
         .build("log/output.log")?;
 
     let config = Config::builder()
         .appender(Appender::builder().build("logfile", Box::new(log_file)))
-        .build(Root::builder().appender("logfile").build(LevelFilter::Debug));
+        .build(
+            Root::builder()
+                .appender("logfile")
+                .build(LevelFilter::Debug),
+        );
 
     if config.is_err() {
-        return Err(Error::new(ErrorKind::Other, "Issue building config"));
+        return Err(Error::new(
+            ErrorKind::Other,
+            "Unable to build logger config",
+        ));
     }
 
     if log4rs::init_config(config.unwrap()).is_err() {
-        return Err(Error::new(ErrorKind::Other, "Issue initializing log4rs"));
+        return Err(Error::new(ErrorKind::Other, "Unable to intialize log4rs"));
     }
 
     info!("{:?}", args);
