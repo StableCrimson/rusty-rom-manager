@@ -3,6 +3,8 @@ use std::io::{BufReader, Read};
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
+use log::{error, warn};
+
 const ISO_MIN_SIZE: u64 = 0xF000;
 const ISO_BUFFER_LEN: usize = 0xF000;
 
@@ -109,7 +111,7 @@ fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
     let file_size = &file.metadata().unwrap().size();
 
     if *file_size < ISO_MIN_SIZE {
-        println!(
+        warn!(
             "{:?} not large enough to fingerprint, skipping...",
             file_path
         );
@@ -120,7 +122,7 @@ fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
     let mut file_contents = [0_u8; ISO_BUFFER_LEN];
 
     if buffer.read_exact(&mut file_contents).is_err() {
-        println!("Error reading file {:?} to buffer, skipping...", file_path);
+        error!("Error reading file {:?} to buffer, skipping...", file_path);
     }
 
     if is_fingerprint_match(&file_contents, ISO_WII_OFFSET, &ISO_WII_FINGERPRINT) {

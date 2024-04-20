@@ -1,16 +1,23 @@
 mod organizer;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 
-#[derive(Parser)]
+use log::info;
+use log::LevelFilter;
+use log4rs::append::file::FileAppender;
+use log4rs::config::{Appender, Config, Root};
+use log4rs::encode::pattern::PatternEncoder;
+
+#[derive(Debug, Parser)]
 #[command(version, about, long_about=None)]
 struct Arguments {
     #[command(subcommand)]
     command: Command,
 }
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 enum Command {
     /// Organize your ROM files based on file type
     Organize {
@@ -34,7 +41,7 @@ enum Command {
     // Allow for it to be done on a specific file or a whole directory
 }
 
-#[derive(ValueEnum, Copy, Clone)]
+#[derive(ValueEnum, Copy, Clone, Debug)]
 enum OrganizationType {
     /// Sort by console (WIP).
     /// If the console ID of a ROM cannot be determined it will be ignored
@@ -47,6 +54,27 @@ enum OrganizationType {
 fn main() -> std::io::Result<()> {
     let args = Arguments::parse();
 
+    let log_file = FileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("{l}-{m}\n")))
+        .build("log/output.log")?;
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("logfile", Box::new(log_file)))
+        .build(Root::builder().appender("logfile").build(LevelFilter::Debug));
+
+    if config.is_err() {
+        return Err(Error::new(ErrorKind::Other, "Issue building config"));
+    }
+
+    if log4rs::init_config(config.unwrap()).is_err() {
+        return Err(Error::new(ErrorKind::Other, "Issue initializing log4rs"));
+    }
+
+    info!("{:?}", args);
+
+    // TODO: Find a nice way to log the organizer result if it's an error
+    // The thing that has me hesitant is that means that all other subcommands
+    // will have to return io::Result, unless this is all refactored
     match args.command {
         Command::Organize {
             path,

@@ -5,6 +5,8 @@ use std::fs;
 use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 
+use log::{debug, info, warn};
+
 use super::OrganizationType;
 
 pub fn organize(
@@ -16,31 +18,26 @@ pub fn organize(
     let target_dir = if let Some(dir) = dest { dir } else { src };
 
     if !src.exists() {
-        return Err(Error::new(
-            ErrorKind::NotFound,
-            format!("{:?} does not exist. Exitting", src.as_path()),
-        ));
+        let msg = format!("{:?} does not exist. Exitting", src.as_path());
+        return Err(Error::new(ErrorKind::NotFound, msg));
     }
 
     let dir_contents = src.read_dir()?;
 
     // TODO: Allow for recursively scanning directories
-    let entries = dir_contents
-        .map(|res| res.map(|e| e.path()))
-        .collect::<Result<Vec<_>, std::io::Error>>()?;
-
     if !target_dir.exists() {
-        println!(
+        info!(
             "{:?} does not exist, creating directory...",
             target_dir.as_path()
         );
-        std::fs::create_dir(target_dir)?;
-        println!("{:?} created successfully", target_dir.as_path());
+        fs::create_dir(target_dir)?;
     }
 
     let mut output_map: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
-    for entry in entries {
+    for entry in dir_contents {
+        let entry = entry?.path();
+
         if entry.is_dir() {
             // TODO: What to do if fingerprinting fails and recursive scanning
             // is enabled?
@@ -55,7 +52,7 @@ pub fn organize(
         let extension = entry.extension();
 
         if extension.is_none() {
-            println!("{:?} has no extension, skipping...", entry);
+            warn!("{:?} has no extension, skipping...", entry);
             continue;
         }
 
@@ -64,7 +61,7 @@ pub fn organize(
             crate::OrganizationType::Console => {
                 let console = file_types::get_console_id(&entry);
                 if console.is_none() {
-                    println!("Unable to determine type of {:?}, skipping...", entry);
+                    warn!("Unable to determine type of {:?}, skipping...", entry);
                     continue;
                 }
 
@@ -78,7 +75,7 @@ pub fn organize(
             .push(entry);
     }
 
-    println!("{:#?}", output_map);
+    debug!("{:#?}", output_map);
 
     // NOTE: What if the file already exists???
     // As it is now, the original file will be overwritten.
@@ -89,12 +86,11 @@ pub fn organize(
             new_file_dest.push(ext);
 
             if !new_file_dest.exists() {
-                println!("{:?} does not exist, creating directory...", new_file_dest);
+                info!("{:?} does not exist, creating directory...", new_file_dest);
                 std::fs::create_dir(&new_file_dest)?;
             }
 
             new_file_dest.push(file.file_name().unwrap());
-            println!("{:?}", new_file_dest);
 
             if file.is_dir() {
                 move_folder(file, new_file_dest, copy)?;
@@ -107,11 +103,7 @@ pub fn organize(
     Ok(())
 }
 
-fn move_folder(
-    src: impl AsRef<Path>,
-    dest: impl AsRef<Path>,
-    copy: bool,
-) -> std::io::Result<()> {
+fn move_folder(src: impl AsRef<Path>, dest: impl AsRef<Path>, copy: bool) -> std::io::Result<()> {
     fs::create_dir_all(&dest)?;
     for entry in fs::read_dir(src)? {
         let entry = entry?;
