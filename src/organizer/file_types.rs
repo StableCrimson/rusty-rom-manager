@@ -3,6 +3,8 @@ use std::io::{BufReader, Read};
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
+use log::{error, warn};
+
 const ISO_MIN_SIZE: u64 = 0xF000;
 const ISO_BUFFER_LEN: usize = 0xF000;
 
@@ -31,6 +33,13 @@ const ISO_PS2_EUR_FINGERPRINT: [u8; 67] = [
 const ISO_PSP_OFFSET: usize = 0x8000;
 const ISO_PSP_FINGERPRINT: [u8; 16] = [
     0x01, 0x43, 0x44, 0x30, 0x30, 0x31, 0x01, 0x00, 0x50, 0x53, 0x50, 0x20, 0x47, 0x41, 0x4D, 0x45,
+];
+
+const DIR_PS3_STRUCTURE: [&str; 4] = [
+    "PS3_DISC.SFB",
+    "PS3_GAME/ICON0.PNG",
+    "PS3_GAME/PARAM.SFO",
+    "PS3_GAME/PS3LOGO.DAT",
 ];
 
 // NOTE: Maybe add support for sorting saves, too?
@@ -79,6 +88,19 @@ pub fn get_console_id(file_path: &Path) -> Option<&str> {
     }
 }
 
+pub fn check_dir_level_rom(file_path: &Path) -> Option<&str> {
+    if !file_path.is_dir() {
+        return None;
+    }
+
+    for file in DIR_PS3_STRUCTURE {
+        if !file_path.join(file).exists() {
+            return None;
+        }
+    }
+    Some("PlayStation 3")
+}
+
 fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
     let target_file = File::open(file_path);
     if target_file.is_err() {
@@ -89,7 +111,7 @@ fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
     let file_size = &file.metadata().unwrap().size();
 
     if *file_size < ISO_MIN_SIZE {
-        println!(
+        warn!(
             "{:?} not large enough to fingerprint, skipping...",
             file_path
         );
@@ -100,7 +122,7 @@ fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
     let mut file_contents = [0_u8; ISO_BUFFER_LEN];
 
     if buffer.read_exact(&mut file_contents).is_err() {
-        println!("Error reading file {:?} to buffer, skipping...", file_path);
+        error!("Error reading file {:?} to buffer, skipping...", file_path);
     }
 
     if is_fingerprint_match(&file_contents, ISO_WII_OFFSET, &ISO_WII_FINGERPRINT) {
