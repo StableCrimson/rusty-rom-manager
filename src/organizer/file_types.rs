@@ -42,36 +42,63 @@ const DIR_PS3_STRUCTURE: [&str; 4] = [
     "PS3_GAME/PS3LOGO.DAT",
 ];
 
+// TODO: Add regions?
+
+#[derive(Debug)]
+pub enum Console {
+    NES,
+    SNES,
+    VirtualBoy,
+    N64,
+    GameCube,
+    Wii,
+    Switch,
+    Gameboy,
+    GameboyColor,
+    GameboyAdvance,
+    NDS,
+    DS3,
+    Playstation2,
+    Playstation3,
+    PSP,
+    PlaystationVita,
+    Dreamcast,
+    Genesis,
+    GameGear,
+    NeoGeo,
+    WonderSwan,
+    WonderSwanColor,
+    Xbox,
+}
+
 // NOTE: Maybe add support for sorting saves, too?
-fn get_console_id_by_ext(ext: &str) -> Option<&str> {
+fn get_console_id_by_ext(ext: &str) -> Option<Console> {
     match ext {
-        "gb" => Some("Gameboy"),
-        "gbc" => Some("Gameboy Color"),
-        "gba" => Some("Gameboy Advance"),
-        "cdi" | "gdi" => Some("Dreamcast"),
-        "nes" | "nez" | "unf" | "unif" => Some("NES"),
-        "sfc" | "smc" => Some("SNES"),
-        "gen" | "md" | "smd" => Some("Genesis"),
-        "gg" => Some("Game Gear"),
-        "n64" | "v64" | "z64" => Some("Nintendo 64"),
-        "gcm" | "gcz" => Some("GameCube"),
-        "xiso" => Some("Xbox"),
-        "nds" => Some("Nintendo DS"),
-        "dsi" => Some("Nintendo DSi"),
-        "wad" | "wbfs" => Some("Wii"),
-        "3ds" | "cia" => Some("3DS"),
-        "nsp" | "xci" => Some("Nintendo Switch"),
-        "ngp" | "ngc" => Some("Neo Geo"),
-        "pce" => Some("PC Engine"),
-        "vpk" => Some("PlayStation Vita"),
-        "vb" => Some("Virtual Boy"),
-        "ws" => Some("WonderSwan"),
-        "wsc" => Some("WonderSwan Color"),
+        "gb" => Some(Console::Gameboy),
+        "gbc" => Some(Console::GameboyColor),
+        "gba" => Some(Console::GameboyAdvance),
+        "cdi" | "gdi" => Some(Console::Dreamcast),
+        "nes" | "nez" | "unf" | "unif" => Some(Console::NES),
+        "sfc" | "smc" => Some(Console::SNES),
+        "gen" | "md" | "smd" => Some(Console::Genesis),
+        "gg" => Some(Console::GameGear),
+        "n64" | "v64" | "z64" => Some(Console::N64),
+        "gcm" | "gcz" => Some(Console::GameCube),
+        "xiso" => Some(Console::Xbox),
+        "nds" | "dsi" => Some(Console::NDS),
+        "wad" | "wbfs" => Some(Console::Wii),
+        "3ds" | "cia" => Some(Console::DS3),
+        "nsp" | "xci" => Some(Console::Switch),
+        "ngp" | "ngc" => Some(Console::NeoGeo),
+        "vpk" => Some(Console::PlaystationVita),
+        "vb" => Some(Console::VirtualBoy),
+        "ws" => Some(Console::WonderSwan),
+        "wsc" => Some(Console::WonderSwanColor),
         _ => None,
     }
 }
 
-pub fn get_console_id(file_path: &Path) -> Option<&str> {
+pub fn get_console_id(file_path: &Path) -> Option<Console> {
     let extension = file_path.extension()?.to_str()?;
 
     if let Some(id) = get_console_id_by_ext(extension) {
@@ -88,7 +115,7 @@ pub fn get_console_id(file_path: &Path) -> Option<&str> {
     }
 }
 
-pub fn check_dir_level_rom(file_path: &Path) -> Option<&str> {
+pub fn check_dir_level_rom(file_path: &Path) -> Option<Console> {
     if !file_path.is_dir() {
         return None;
     }
@@ -98,10 +125,10 @@ pub fn check_dir_level_rom(file_path: &Path) -> Option<&str> {
             return None;
         }
     }
-    Some("PlayStation 3")
+    Some(Console::Playstation3)
 }
 
-fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
+fn try_fingerprint_iso(file_path: &Path) -> Option<Console> {
     let target_file = File::open(file_path);
     if target_file.is_err() {
         return None;
@@ -126,7 +153,7 @@ fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
     }
 
     if is_fingerprint_match(&file_contents, ISO_WII_OFFSET, &ISO_WII_FINGERPRINT) {
-        return Some("Wii");
+        return Some(Console::Wii);
     }
 
     if is_fingerprint_match(
@@ -134,17 +161,17 @@ fn try_fingerprint_iso(file_path: &Path) -> Option<&str> {
         ISO_GAMECUBE_OFFSET,
         &ISO_GAMECUBE_FINGERPRINT,
     ) {
-        return Some("GameCube");
+        return Some(Console::GameCube);
     }
 
     // TODO: PSX ISOs
 
     if is_ps2_game(&file_contents) {
-        return Some("PlayStation 2");
+        return Some(Console::Playstation2);
     }
 
     if is_fingerprint_match(&file_contents, ISO_PSP_OFFSET, &ISO_PSP_FINGERPRINT) {
-        return Some("PSP");
+        return Some(Console::PSP);
     }
 
     None
@@ -154,8 +181,6 @@ fn is_fingerprint_match(buff: &[u8], offset: usize, fingerprint: &[u8]) -> bool 
     buff[offset..offset + fingerprint.len()] == *fingerprint
 }
 
-// NOTE: This is its own method because we need to mask the bits before we can fingerprint
-// and because there are 2 offsets and 3 fingerprints
 fn is_ps2_game(buf: &[u8]) -> bool {
     // NOTE: We need to mask off the upper 4 bits to match the fingerprint
     let masked_buf: Vec<u8> = buf.iter().map(|b| b & 0b0000_1111).collect();

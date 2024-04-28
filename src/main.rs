@@ -1,4 +1,5 @@
 mod organizer;
+mod verify;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use std::io::{Error, ErrorKind};
@@ -9,6 +10,8 @@ use log::LevelFilter;
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
+
+use verify::DatFile;
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about=None)]
@@ -37,8 +40,17 @@ enum Command {
         #[arg(short, long, value_enum, default_value_t=OrganizationType::Console)]
         sort_method: OrganizationType,
     },
+
     // TODO: File conversion??? ISO -> RVZ, BIN+CUE -> PBP/CHD
     // Allow for it to be done on a specific file or a whole directory
+    /// Verify ROM based on DAT files
+    Verify {
+        /// Path to ROM file
+        path: PathBuf,
+
+        /// Path to the DAT file used to check against
+        dat: PathBuf,
+    },
 }
 
 #[derive(ValueEnum, Copy, Clone, Debug)]
@@ -89,6 +101,13 @@ fn main() -> std::io::Result<()> {
             copy,
             sort_method,
         } => organizer::organize(&path, target.as_ref(), copy, sort_method)?,
+        Command::Verify { path, dat } => {
+
+            if verify::verify(&path, &dat).is_err() {
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, "Verification failed"));
+            }
+
+        },
     }
 
     Ok(())

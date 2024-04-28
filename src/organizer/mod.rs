@@ -1,4 +1,4 @@
-mod file_types;
+pub mod file_types;
 
 use std::collections::HashMap;
 use std::fs;
@@ -44,7 +44,10 @@ pub fn organize(
             // Ex: If it's a malformed PS3 game and the user is scanning
             // subdirectories then are we going to scan thousands of files?
             if let Some(id) = file_types::check_dir_level_rom(&entry) {
-                output_map.entry(id.to_string()).or_default().push(entry);
+                output_map
+                    .entry(format!("{:?}", id))
+                    .or_default()
+                    .push(entry);
             }
             continue;
         }
@@ -57,7 +60,9 @@ pub fn organize(
         }
 
         let map_key = match sort_method {
-            crate::OrganizationType::FileExtension => extension.unwrap().to_str().unwrap(),
+            crate::OrganizationType::FileExtension => {
+                String::from(extension.unwrap().to_str().unwrap())
+            }
             crate::OrganizationType::Console => {
                 let console = file_types::get_console_id(&entry);
                 if console.is_none() {
@@ -65,7 +70,8 @@ pub fn organize(
                     continue;
                 }
 
-                console.unwrap()
+                let id = format!("{:?}", console.unwrap());
+                id.to_string()
             }
         };
 
@@ -80,25 +86,27 @@ pub fn organize(
     // NOTE: What if the file already exists???
     // As it is now, the original file will be overwritten.
     // Do we want to rename it so that file becomes file-1.gb? Or should we just skip?
-    for (ext, path) in &output_map {
-        for file in path {
-            let mut new_file_dest = target_dir.to_owned();
-            new_file_dest.push(ext);
+    /*
+        for (ext, path) in &output_map {
+            for file in path {
+                let mut new_file_dest = target_dir.to_owned();
+                new_file_dest.push(ext);
 
-            if !new_file_dest.exists() {
-                info!("{:?} does not exist, creating directory...", new_file_dest);
-                std::fs::create_dir(&new_file_dest)?;
-            }
+                if !new_file_dest.exists() {
+                    info!("{:?} does not exist, creating directory...", new_file_dest);
+                    std::fs::create_dir(&new_file_dest)?;
+                }
 
-            new_file_dest.push(file.file_name().unwrap());
+                new_file_dest.push(file.file_name().unwrap());
 
-            if file.is_dir() {
-                move_folder(file, new_file_dest, copy)?;
-            } else {
-                move_file(file, new_file_dest, copy)?;
+                if file.is_dir() {
+                    move_folder(file, new_file_dest, copy)?;
+                } else {
+                    move_file(file, new_file_dest, copy)?;
+                }
             }
         }
-    }
+    */
 
     Ok(())
 }
