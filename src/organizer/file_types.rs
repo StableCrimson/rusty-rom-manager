@@ -4,6 +4,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 use log::{error, warn};
+use log4rs::append::file;
 
 const ISO_MIN_SIZE: u64 = 0xF000;
 const ISO_BUFFER_LEN: usize = 0xF000;
@@ -44,7 +45,7 @@ const DIR_PS3_STRUCTURE: [&str; 4] = [
 
 // TODO: Add regions?
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Console {
     NES,
     SNES,
@@ -99,6 +100,11 @@ fn get_console_id_by_ext(ext: &str) -> Option<Console> {
 }
 
 pub fn get_console_id(file_path: &Path) -> Option<Console> {
+
+    if file_path.is_dir() {
+        return check_dir_level_rom(file_path);
+    }
+
     let extension = file_path.extension()?.to_str()?;
 
     if let Some(id) = get_console_id_by_ext(extension) {

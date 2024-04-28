@@ -38,7 +38,12 @@ enum Command {
 
         /// Method used to organize ROMs
         #[arg(short, long, value_enum, default_value_t=OrganizationType::Console)]
-        sort_method: OrganizationType,
+        method: OrganizationType,
+
+        /// Recursively search subdirectories.
+        /// Will skip directory-level ROMs
+        #[arg(short, long)]
+        recursive: bool
     },
 
     // TODO: File conversion??? ISO -> RVZ, BIN+CUE -> PBP/CHD
@@ -99,8 +104,9 @@ fn main() -> std::io::Result<()> {
             path,
             target,
             copy,
-            sort_method,
-        } => organizer::organize(&path, target.as_ref(), copy, sort_method)?,
+            method,
+            recursive
+        } => organizer::organize(&path, target.as_ref(), copy, method, recursive)?,
         Command::Verify { path, dat } => {
 
             if verify::verify(&path, &dat).is_err() {

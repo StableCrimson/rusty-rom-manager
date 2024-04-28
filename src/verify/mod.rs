@@ -22,7 +22,7 @@ pub struct Rom {
 }
 
 impl Rom {
-    pub fn new(path: &PathBuf) -> Result<Self, String> {
+    pub fn new(path: &Path) -> Result<Self, String> {
         if !path.exists() {
             return Err("File does not exist".to_string());
         }
@@ -46,6 +46,14 @@ impl Rom {
         if result.is_ok() {
             self.status = GameStatus::Verified;
         }
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+    
+    pub fn console_id(&self) -> Console {
+        self.console
     }
 }
 
@@ -97,9 +105,10 @@ impl DatFile {
 
 // TODO: Verify directory-level ROMs like PS3 games
 // TODO: Allow for passing a directory for large-scale verification
+// TODO: Allow for automatically grabbing DATs based on console id?
 pub fn verify(file_path: &PathBuf, dat_file: &PathBuf) -> Result<(), String> {
-    let dat = DatFile::from_file(&dat_file).unwrap();
-    let file_size = get_file_size(&file_path);
+    let dat = DatFile::from_file(dat_file).unwrap();
+    let file_size = get_file_size(file_path);
     let file_name = file_path.file_name().unwrap().to_str().unwrap();
 
     let mut try_rom = None;
@@ -126,7 +135,7 @@ pub fn verify(file_path: &PathBuf, dat_file: &PathBuf) -> Result<(), String> {
         return Err(msg);
     }
 
-    let md5 = hash_file(&file_path, Algorithm::MD5).to_lowercase();
+    let md5 = hash_file(file_path, Algorithm::MD5).to_lowercase();
     debug!("{}", md5);
 
     if md5 != rom.md5 {
@@ -141,7 +150,7 @@ pub fn verify(file_path: &PathBuf, dat_file: &PathBuf) -> Result<(), String> {
 }
 
 fn get_file_size(file_path: &PathBuf) -> u64 {
-    std::fs::File::open(&file_path)
+    std::fs::File::open(file_path)
         .unwrap()
         .metadata()
         .unwrap()
