@@ -1,4 +1,5 @@
 mod organizer;
+mod verify;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use std::io::{Error, ErrorKind};
@@ -35,10 +36,34 @@ enum Command {
 
         /// Method used to organize ROMs
         #[arg(short, long, value_enum, default_value_t=OrganizationType::Console)]
-        sort_method: OrganizationType,
+        method: OrganizationType,
+
+        /// Recursively search subdirectories.
+        /// Will skip directory-level ROMs
+        #[arg(short, long)]
+        recursive: bool,
     },
+
     // TODO: File conversion??? ISO -> RVZ, BIN+CUE -> PBP/CHD
     // Allow for it to be done on a specific file or a whole directory
+    /// Verify ROM based on DAT files
+    Verify {
+        /// Path to ROM file
+        path: PathBuf,
+
+        /// Path to the DAT file used to check against
+        dat: PathBuf,
+    },
+    
+    /// Try to find the information of a ROM based on the provided
+    /// DAT and an MD5 hash.
+    Identify {
+        /// Path to ROM file
+        path: PathBuf,
+
+        /// Path to the DAT file used to check against
+        dat: PathBuf,
+    },
 }
 
 #[derive(ValueEnum, Copy, Clone, Debug)]
@@ -87,8 +112,25 @@ fn main() -> std::io::Result<()> {
             path,
             target,
             copy,
-            sort_method,
-        } => organizer::organize(&path, target.as_ref(), copy, sort_method)?,
+            method,
+            recursive,
+        } => organizer::organize(&path, target.as_ref(), copy, method, recursive)?,
+        Command::Verify { path, dat } => {
+            if verify::verify(&path, &dat).is_err() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Verification failed",
+                ));
+            }
+        },
+        Command::Identify { path, dat } => {
+            if verify::identify(&path, &dat).is_err() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Idenfication failed",
+                ));
+            }
+        }
     }
 
     Ok(())
