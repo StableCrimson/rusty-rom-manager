@@ -2,6 +2,7 @@ use log::{debug, info, warn};
 
 use checksums::{hash_file, Algorithm};
 
+use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
@@ -51,7 +52,7 @@ impl Rom {
     pub fn path(&self) -> &Path {
         &self.path
     }
-    
+
     pub fn console_id(&self) -> Console {
         self.console
     }
@@ -149,10 +150,23 @@ pub fn verify(file_path: &PathBuf, dat_file: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+pub fn identify(file_path: &PathBuf, dat_file: &PathBuf) -> Result<String, String> {
+    let md5 = hash_file(file_path, Algorithm::MD5).to_lowercase();
+    debug!("{}", md5);
+
+    let dat = DatFile::from_file(dat_file).unwrap();
+
+    for game in &dat.games {
+        if game.rom.md5 == md5 {
+            debug!("{:?}", game.rom);
+            println!("ROM identified as {}", game.rom.name);
+            return Ok(game.rom.name.clone());
+        }
+    }
+
+    Err("Unable to identify ROM".to_string())
+}
+
 fn get_file_size(file_path: &PathBuf) -> u64 {
-    std::fs::File::open(file_path)
-        .unwrap()
-        .metadata()
-        .unwrap()
-        .size()
+    File::open(file_path).unwrap().metadata().unwrap().size()
 }

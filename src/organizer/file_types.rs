@@ -4,7 +4,6 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 use log::{error, warn};
-use log4rs::append::file;
 
 const ISO_MIN_SIZE: u64 = 0xF000;
 const ISO_BUFFER_LEN: usize = 0xF000;
@@ -72,7 +71,6 @@ pub enum Console {
     Xbox,
 }
 
-// NOTE: Maybe add support for sorting saves, too?
 fn get_console_id_by_ext(ext: &str) -> Option<Console> {
     match ext {
         "gb" => Some(Console::Gameboy),
@@ -100,7 +98,6 @@ fn get_console_id_by_ext(ext: &str) -> Option<Console> {
 }
 
 pub fn get_console_id(file_path: &Path) -> Option<Console> {
-
     if file_path.is_dir() {
         return check_dir_level_rom(file_path);
     }
@@ -169,8 +166,6 @@ fn try_fingerprint_iso(file_path: &Path) -> Option<Console> {
     ) {
         return Some(Console::GameCube);
     }
-
-    // TODO: PSX ISOs
 
     if is_ps2_game(&file_contents) {
         return Some(Console::Playstation2);

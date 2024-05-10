@@ -1,6 +1,5 @@
 pub mod file_types;
 
-use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
@@ -16,7 +15,7 @@ pub fn organize(
     dest: Option<&PathBuf>,
     copy: bool,
     sort_method: OrganizationType,
-    recursive: bool
+    recursive: bool,
 ) -> std::io::Result<()> {
     let mut roms = Vec::new();
 
@@ -24,18 +23,14 @@ pub fn organize(
 
     let target_dir = if let Some(dir) = dest { dir } else { src };
 
-    // TODO: Allow for recursively scanning directories
     if !target_dir.exists() {
         info!(
             "{:?} does not exist, creating directory...",
             target_dir.as_path()
         );
-        fs::create_dir(target_dir)?;
+        fs::create_dir_all(target_dir)?;
     }
 
-    // NOTE: What if the file already exists???
-    // As it is now, the original file will be overwritten.
-    // Do we want to rename it so that file becomes file-1.gb? Or should we just skip?
     for rom in roms {
         let folder = match sort_method {
             OrganizationType::FileExtension => {
@@ -58,24 +53,23 @@ pub fn organize(
 
         if !new_file_dest.exists() {
             info!("{:?} does not exist, creating directory...", new_file_dest);
-            // std::fs::create_dir(&new_file_dest)?;
+            // fs::create_dir(&new_file_dest)?;
         }
 
         new_file_dest.push(rom.path().file_name().unwrap());
         println!("{:?}", new_file_dest);
+        debug!("{:?}", new_file_dest);
 
         if new_file_dest.exists() {
             warn!("{:?} already exists, skipping...", new_file_dest);
             continue;
         }
 
-        /*
-                if rom.path().is_dir() {
-                    move_folder(rom.path(), new_file_dest, copy)?;
-                } else {
-                    move_file(rom.path(), new_file_dest, copy)?;
-                }
-        */
+        if rom.path().is_dir() {
+            move_folder(rom.path(), new_file_dest, copy)?;
+        } else {
+            move_file(rom.path(), new_file_dest, copy)?;
+        }
     }
 
     Ok(())
@@ -94,10 +88,6 @@ fn find_roms(root_folder: &Path, rom_list: &mut Vec<Rom>, recursive: bool) -> io
         let entry = entry?.path();
 
         if entry.is_dir() {
-            // TODO: What to do if fingerprinting fails and recursive scanning
-            // is enabled?
-            // Ex: If it's a malformed PS3 game and the user is scanning
-            // subdirectories then are we going to scan thousands of files?
             if file_types::check_dir_level_rom(&entry).is_none() {
                 if !recursive {
                     continue;

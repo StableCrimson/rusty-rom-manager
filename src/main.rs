@@ -11,8 +11,6 @@ use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
 
-use verify::DatFile;
-
 #[derive(Debug, Parser)]
 #[command(version, about, long_about=None)]
 struct Arguments {
@@ -43,13 +41,23 @@ enum Command {
         /// Recursively search subdirectories.
         /// Will skip directory-level ROMs
         #[arg(short, long)]
-        recursive: bool
+        recursive: bool,
     },
 
     // TODO: File conversion??? ISO -> RVZ, BIN+CUE -> PBP/CHD
     // Allow for it to be done on a specific file or a whole directory
     /// Verify ROM based on DAT files
     Verify {
+        /// Path to ROM file
+        path: PathBuf,
+
+        /// Path to the DAT file used to check against
+        dat: PathBuf,
+    },
+    
+    /// Try to find the information of a ROM based on the provided
+    /// DAT and an MD5 hash.
+    Identify {
         /// Path to ROM file
         path: PathBuf,
 
@@ -105,15 +113,24 @@ fn main() -> std::io::Result<()> {
             target,
             copy,
             method,
-            recursive
+            recursive,
         } => organizer::organize(&path, target.as_ref(), copy, method, recursive)?,
         Command::Verify { path, dat } => {
-
             if verify::verify(&path, &dat).is_err() {
-                return Err(std::io::Error::new(std::io::ErrorKind::Other, "Verification failed"));
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Verification failed",
+                ));
             }
-
         },
+        Command::Identify { path, dat } => {
+            if verify::identify(&path, &dat).is_err() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Idenfication failed",
+                ));
+            }
+        }
     }
 
     Ok(())
