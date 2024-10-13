@@ -54,7 +54,7 @@ enum Command {
         /// Path to the DAT file used to check against
         dat: PathBuf,
     },
-    
+
     /// Try to find the information of a ROM based on the provided
     /// DAT and an MD5 hash.
     Identify {
@@ -63,6 +63,10 @@ enum Command {
 
         /// Path to the DAT file used to check against
         dat: PathBuf,
+
+        /// Rename the file according to the DAT
+        #[arg(short, long, default_value_t = false)]
+        rename: bool,
     },
 }
 
@@ -122,9 +126,9 @@ fn main() -> std::io::Result<()> {
                     "Verification failed",
                 ));
             }
-        },
-        Command::Identify { path, dat } => {
-            if verify::identify(&path, &dat).is_err() {
+        }
+        Command::Identify { path, dat, rename } => {
+            if verify::identify(&path, &dat, rename).is_err() {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
                     "Idenfication failed",

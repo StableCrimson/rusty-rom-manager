@@ -53,6 +53,8 @@ pub fn organize(
 
         if !new_file_dest.exists() {
             info!("{:?} does not exist, creating directory...", new_file_dest);
+            // TODO: Uncomment for release.
+            // TODO: Should add a DEBUG flag that handles this for us?
             // fs::create_dir(&new_file_dest)?;
         }
 
@@ -121,7 +123,7 @@ fn move_folder(src: impl AsRef<Path>, dest: impl AsRef<Path>, copy: bool) -> std
     Ok(())
 }
 
-fn move_file(src: impl AsRef<Path>, dest: impl AsRef<Path>, copy: bool) -> std::io::Result<()> {
+pub fn move_file(src: impl AsRef<Path>, dest: impl AsRef<Path>, copy: bool) -> std::io::Result<()> {
     if copy {
         fs::copy(src, dest)?;
     } else {

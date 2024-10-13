@@ -1,8 +1,9 @@
 use log::{debug, info, warn};
 
-use checksums::{hash_file, Algorithm};
+use sha1_smol::Sha1;
 
-use std::fs::File;
+use std::fs::{self, File};
+use std::io::{BufReader, Read};
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
@@ -10,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_xml_rs::from_str;
 
 use crate::organizer::file_types::{self, Console};
+use crate::organizer::move_file;
 
 #[derive(Debug)]
 pub enum GameStatus {
@@ -92,8 +94,8 @@ pub struct Entry {
     name: String,
     size: String,
     // crc: String,
-    md5: String,
-    // sha1: String,
+    // md5: String,
+    sha1: String,
 }
 
 impl DatFile {
@@ -122,9 +124,10 @@ pub fn verify(file_path: &PathBuf, dat_file: &PathBuf) -> Result<(), String> {
     }
 
     if try_rom.is_none() {
-        println!("Unable to find ROM in dat file");
-        warn!("Unable to find ROM in dat file");
-        return Err("Unable to find ROM in dat file".to_string());
+        let msg = "Unable to find ROM in dat file";
+        println!("{msg}");
+        warn!("{msg}");
+        return Err(msg.to_string());
     }
 
     let rom = try_rom.unwrap();
@@ -136,11 +139,11 @@ pub fn verify(file_path: &PathBuf, dat_file: &PathBuf) -> Result<(), String> {
         return Err(msg);
     }
 
-    let md5 = hash_file(file_path, Algorithm::MD5).to_lowercase();
-    debug!("{}", md5);
+    let sha1 = calculate_sha1(file_path);
+    debug!("{}", sha1);
 
-    if md5 != rom.md5 {
-        let msg = format!("File hashes don't match {} {}", md5, rom.md5);
+    if sha1 != rom.sha1 {
+        let msg = format!("File hashes don't match {} {}", sha1, rom.sha1);
         warn!("{}", msg);
         return Err(msg);
     }
@@ -150,21 +153,55 @@ pub fn verify(file_path: &PathBuf, dat_file: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-pub fn identify(file_path: &PathBuf, dat_file: &PathBuf) -> Result<String, String> {
-    let md5 = hash_file(file_path, Algorithm::MD5).to_lowercase();
-    debug!("{}", md5);
-
+pub fn identify(file_path: &PathBuf, dat_file: &PathBuf, rename: bool) -> Result<String, String> {
+    let sha1 = calculate_sha1(file_path);
+    debug!("{}", sha1);
     let dat = DatFile::from_file(dat_file).unwrap();
 
     for game in &dat.games {
-        if game.rom.md5 == md5 {
+        if game.rom.sha1 == sha1 {
             debug!("{:?}", game.rom);
             println!("ROM identified as {}", game.rom.name);
+
+            if rename {
+                // TODO:: Allow for copying?
+                let mut new_file_dest = file_path.to_owned();
+                new_file_dest.pop();
+
+                if !new_file_dest.exists() {
+                    info!("{:?} does not exist, creating directory...", new_file_dest);
+                    let _ = fs::create_dir(&new_file_dest);
+                }
+
+                new_file_dest.push(&game.rom.name);
+                println!("{:?}", new_file_dest);
+                debug!("{:?}", new_file_dest);
+
+                let _ = move_file(file_path, new_file_dest, false);
+            }
+
             return Ok(game.rom.name.clone());
         }
     }
 
     Err("Unable to identify ROM".to_string())
+}
+
+fn calculate_sha1(file_path: &PathBuf) -> String {
+    let mut hasher = Sha1::new();
+
+    let file = File::open(file_path).unwrap();
+    let mut buffer = [0; 0xFFFF];
+    let mut reader = BufReader::new(file);
+
+    loop {
+        let bytes_read = reader.read(&mut buffer).unwrap();
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+    hasher.digest().to_string()
 }
 
 fn get_file_size(file_path: &PathBuf) -> u64 {
