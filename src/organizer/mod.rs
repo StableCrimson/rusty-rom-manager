@@ -89,14 +89,12 @@ fn find_roms(root_folder: &Path, rom_list: &mut Vec<Rom>, recursive: bool) -> io
     for entry in dir_contents {
         let entry = entry?.path();
 
-        if entry.is_dir() {
-            if file_types::check_dir_level_rom(&entry).is_none() {
-                if !recursive {
-                    continue;
-                }
-
-                find_roms(&entry, rom_list, recursive)?;
+        if entry.is_dir() && file_types::check_dir_level_rom(&entry).is_none() {
+            if !recursive {
+                continue;
             }
+
+            find_roms(&entry, rom_list, recursive)?;
         }
 
         let Ok(rom) = Rom::new(&entry) else {
